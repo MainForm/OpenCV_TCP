@@ -2,15 +2,37 @@ import socket
 import cv2
 
 #정수를 보내기 위한 함수
-def sendInt(socket :socket.socket,data : int) -> int:
+def sendInt(socket :socket.socket, data : int) -> int:
     #숫자 끝에 NULL문자를 보내 숫자의 끝을 나타낸다.
     return socket.send((str(data) + '\0').encode())
 
 def sendImage(socket :socket.socket,img):
-    sendInt(client_socket,len(img[0]))  #width 크기 전송
-    sendInt(client_socket,len(img))     #height 크기 전송
+    bImgData = cv2.imencode('.jpg',img)[1].tostring()
+    sendInt(socket, len(bImgData))
+    socket.send(bImgData)
+    
+def recvInt(sock : socket.socket) -> int:
+	bData = bytearray()
+	while True:
+		aByte = sock.recv(1)
+		if aByte[0] == 0:
+			break
+		bData.append(aByte[0])
 
-    client_socket.send(img)             #사진 데이터 전송
+	return int(bData.decode())
+
+def recvImg(sock : socket.socket):
+	ImgSize = recvInt(sock)
+	bData = bytearray()
+	
+	while len(bData) < ImgSize:
+		bData += bytearray(sock.recv(ImgSize - len(bData)))
+
+	bData = bytes(bData)	#convert bytearry to bytes
+
+	Img = np.frombuffer(bData,dtype=np.dtype(np.uint8))
+	Img = Img.reshape(ImgSize,1)
+	return cv2.imdecode(Img,cv2.IMREAD_COLOR)
 
 server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 
