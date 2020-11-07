@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
@@ -17,13 +18,15 @@ namespace OpenCV_TCP
             Socket socket =
                 new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            EndPoint serverEP = new IPEndPoint(IPAddress.Parse("192.168.40.131"), 9999);
+            Console.WriteLine("Connecting..");
+            EndPoint serverEP = new IPEndPoint(IPAddress.Parse("192.168.111.131"), 9999);
 
             socket.Connect(serverEP);
 
             Mat Img = RecvImage(socket);
 
             Cv2.ImShow("From Server", Img);
+
             Cv2.WaitKey(0);
             Cv2.DestroyAllWindows();
 
@@ -49,20 +52,20 @@ namespace OpenCV_TCP
 
         static private Mat RecvImage(Socket sock)
         {
-            int width = RecvInt(sock);
-            int height = RecvInt(sock);
+            List<byte> lstData = new List<byte>();
+            int ImgSize = RecvInt(sock);
 
-            Mat Img = new Mat(height, width, 16);
 
-            for (int iy = 0; iy < height; iy++)
+            while (ImgSize > lstData.Count())
             {
-                for (int ix = 0; ix < width; ix++)
-                {
-                    byte[] tmp = new byte[4];
-                    sock.Receive(tmp, 3, 0);
-                    Img.At<int>(iy, ix) = BitConverter.ToInt32(tmp, 0);
-                }
+                byte[] bData = new byte[ImgSize - lstData.Count()];
+
+                int RecvSize = sock.Receive(bData);
+                Array.Resize(ref bData, RecvSize);
+                lstData.AddRange(bData);
             }
+
+            Mat Img = Mat.ImDecode(lstData.ToArray());
 
             return Img;
         }
